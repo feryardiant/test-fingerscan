@@ -1,0 +1,19 @@
+{
+    "name": "feryardiant/fingerscan",
+    "description": "[WIP] Simple library to interacts with fingerscan devices",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Fingerscan\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Fery Wardiyanto",
+            "email": "ferywardiyanto@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
