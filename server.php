@@ -30,24 +30,54 @@ $seqs = $json_obj->seq[$idx];
 $output = [];
 $errors = [];
 
+function req(int ...$chrs) {
+    $parsed = [
+        'prefix' => $chrs[0],
+        'sequence' => $chrs[7],
+        'payload' => array_slice($chrs, 3, 3),
+        'unknown-1' => $chrs[1],
+        'unknown-2' => $chrs[2],
+        'suffix' => array_slice($chrs, 8),
+    ];
+    var_dump($parsed['payload'], p($parsed['payload']));
+
+    return $parsed;
+}
+
+function res(int ...$chrs) {
+    $parsed = [
+        'prefix' => $chrs[0],
+        'sequence' => $chrs[4],
+        'payload' => array_slice($chrs, 6),
+        'unknown-1' => $chrs[1],
+        'unknown-2' => array_slice($chrs, 2, 2),
+    ];
+    var_dump($parsed['unknown-2'], p($parsed['payload']));
+
+    return $parsed;
+}
+
+function p(array $chrs, bool $convert = false) {
+    if (empty($chrs)) {
+        return null;
+    }
+
+    $pack = pack('S*', ...$chrs);
+
+    if ($convert) {
+        return mb_convert_encoding($pack, 'utf-8');
+    }
+
+    return $pack;
+}
+
 function decode(string $bin, bool $res = false) {
     $chrs = array_values(unpack('S*', $bin));
 
-    $toUtf8 = static function (int ...$chrs) use ($res) {
-        $packed = pack('S*', ...$chrs);
-        $cmp = $res ? 0x55aa : 0xaa55;
-
-        if (count($chrs) > 1) {
-            var_dump($cmp, $chrs[0], $chrs[0] === $cmp);
-        }
-
-        return iconv('utf-16le', 'utf-8', $packed);
-    };
-
     return [
-        'packed' => $toUtf8(...$chrs),
-        'int' => $chrs,
-        'utf-8' => array_map($toUtf8, $chrs),
+        'hex' => array_map('dechex', $chrs),
+        'packed' => p($chrs, true),
+        ...($res ? res(...$chrs) : req(...$chrs)),
     ];
 }
 
@@ -96,6 +126,9 @@ if (! empty($errors)) {
     exit(1);
 }
 
-file_put_contents(__DIR__."/samples/outputs/{$idx}.json", json_encode($output, JSON_PRETTY_PRINT));
+file_put_contents(
+    __DIR__."/samples/outputs/{$idx}.json",
+    json_encode($output, JSON_PRETTY_PRINT | JSON_HEX_QUOT)
+);
 
 exit(0);
