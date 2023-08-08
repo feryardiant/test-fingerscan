@@ -61,7 +61,7 @@ do {
 
     echo sprintf('Sending: %s', $req).PHP_EOL;
     $sample->req_unpack = p($msg, 's*');
-    $sent = socket_send($sock, $msg, $len = strlen($msg), MSG_EOF);
+    $sent = socket_send($sock, $msg, strlen($msg), MSG_EOF);
 
     while ($recv = socket_read($sock, 1024)) {
         $res_hex = bin2hex($recv);
@@ -83,13 +83,8 @@ do {
     $output[] = $sample;
     $seq++;
 
-    if (! isset($seqs[$seq])) {
-        echo 'No more data to send'.PHP_EOL;
-        break;
-    }
-
     echo PHP_EOL;
-} while (true);
+} while (isset($seqs[$seq]));
 
 socket_clear_error($sock);
 socket_close($sock);
