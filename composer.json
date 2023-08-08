@@ -1,6 +1,6 @@
 {
     "name": "feryardiant/fingerscan",
-    "description": "[WIP] Simple library to interacts with fingerscan devices",
+    "description": "[WIP] Experimental library to interacts with fingerprint-scanner devices",
     "type": "library",
     "license": "MIT",
     "autoload": {
