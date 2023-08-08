@@ -19,42 +19,58 @@ if (false === socket_connect($sock, $device_ip, $device_port)) {
     socket_close($sock);
     exit(1);
 }
-//socket_set_nonblock($sock);
+
+$json_str = file_get_contents(__DIR__.'/fingerscan.json');
+$json_obj = json_decode($json_str, false);
 
 $seq = 0;
-$seqs = [
-    '55:aa:01:80:00:00:00:00:01:00:ff:ff:00:00:01:00',
-];
+$seqs = $json_obj->seq[0];
+
+$errors = [];
 
 do {
-    $msg = $seqs[$seq];
-    echo 'Sending'.PHP_EOL;
-    $sent = socket_write($sock, $msg, $len = strlen($msg));
+    $req = str_replace(':', '', $seqs[$seq]->req);
+    $res = str_replace(':', '', $seqs[$seq]->res);
 
-    if ($sent === $len) {
-        echo 'Message sent'.PHP_EOL;
+    $msg = hex2bin($req);
+
+    echo sprintf('Sending: %s', $req).PHP_EOL;
+    $sent = socket_send($sock, $msg, $len = strlen($msg), MSG_EOF);
+
+    while ($recv = socket_read($sock, 1024)) {
+        $res_hex = bin2hex($recv);
+
+        $assert = $res_hex === $res ? 'yes' : $res;
+
+        echo sprintf('Received: %s, expected: %s', $res_hex, $assert).PHP_EOL;
+        break;
     }
 
-    echo 'Reading'.PHP_EOL;
-    while ($res = socket_read($sock, 1024)) {
-        var_dump($res);
-    }
-
-    if (false === $res) {
+    if (false === $recv) {
         $code = socket_last_error($sock);
         socket_clear_error($sock);
 
-        var_dump(socket_strerror($code));
+        $errors[] = socket_strerror($code);
     }
 
     $seq++;
 
     if (! isset($seqs[$seq])) {
-        echo 'No more data to send';
+        echo 'No more data to send'.PHP_EOL;
         break;
     }
+
+    echo PHP_EOL;
 } while (true);
 
 socket_clear_error($sock);
 socket_close($sock);
+
+if (! empty($errors)) {
+    echo 'Errors:'.PHP_EOL;
+    echo implode(PHP_EOL, $errors).PHP_EOL;
+    
+    exit(1);
+}
+
 exit(0);
