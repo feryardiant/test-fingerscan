@@ -20,21 +20,47 @@ if (false === socket_connect($sock, $device_ip, $device_port)) {
     exit(1);
 }
 
-$json_str = file_get_contents(__DIR__.'/fingerscan.json');
+$json_str = file_get_contents(__DIR__.'/samples/fingerscan.json');
 $json_obj = json_decode($json_str, false);
 
+$idx = (int) $argv[1] ?? 0;
 $seq = 0;
-$seqs = $json_obj->seq[0];
+$seqs = $json_obj->seq[$idx];
 
+$output = [];
 $errors = [];
 
+function p(string $bin, string $fmt = null, bool $res = false) {
+    $chrs = [];
+    $out = [
+        'packed' => null,
+        'chars' => [],
+    ];
+
+    foreach (unpack($fmt, $bin) as $i => $chr) {
+        $chrs[] = $chr;
+    }
+
+    $out['chars'] = $chrs;
+
+    if (! empty($chrs)) {
+        $packed = pack($fmt, ...$chrs);
+        $out['packed'] = iconv('utf-16le', 'utf-8', $packed);
+        print_r($packed);
+    }
+
+    return $out;
+}
+
 do {
-    $req = str_replace(':', '', $seqs[$seq]->req);
-    $res = str_replace(':', '', $seqs[$seq]->res);
+    $sample = $seqs[$seq];
+    $req = str_replace(':', '', $sample->req);
+    $res = str_replace(':', '', $sample->res);
 
     $msg = hex2bin($req);
 
     echo sprintf('Sending: %s', $req).PHP_EOL;
+    $sample->req_unpack = p($msg, 's*');
     $sent = socket_send($sock, $msg, $len = strlen($msg), MSG_EOF);
 
     while ($recv = socket_read($sock, 1024)) {
@@ -43,6 +69,7 @@ do {
         $assert = $res_hex === $res ? 'yes' : $res;
 
         echo sprintf('Received: %s, expected: %s', $res_hex, $assert).PHP_EOL;
+        $sample->res_unpack = p($recv, 's*', true);
         break;
     }
 
@@ -53,6 +80,7 @@ do {
         $errors[] = socket_strerror($code);
     }
 
+    $output[] = $sample;
     $seq++;
 
     if (! isset($seqs[$seq])) {
@@ -69,8 +97,10 @@ socket_close($sock);
 if (! empty($errors)) {
     echo 'Errors:'.PHP_EOL;
     echo implode(PHP_EOL, $errors).PHP_EOL;
-    
+
     exit(1);
 }
+
+file_put_contents(__DIR__."/samples/outputs/{$idx}.json", json_encode($output, JSON_PRETTY_PRINT));
 
 exit(0);
