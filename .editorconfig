@@ -12,11 +12,5 @@ trim_trailing_whitespace = true
 insert_final_newline = false
 trim_trailing_whitespace = false
 
-[*.{css,js,json,ts,svg,vue,xml,yml,yaml}]
+[*.{yml,yaml}]
 indent_size = 2
-
-[resources/**.conf]
-indent_style = tab
-
-[docker-compose.yml]
-indent_size = 4

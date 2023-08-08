@@ -30,46 +30,46 @@ $seqs = $json_obj->seq[$idx];
 $output = [];
 $errors = [];
 
-function p(string $bin, string $fmt = null, bool $res = false) {
-    $chrs = [];
-    $out = [
-        'packed' => null,
-        'chars' => [],
+function decode(string $bin, bool $res = false) {
+    $chrs = array_values(unpack('s*', $bin));
+
+    $toUtf8 = static function (int ...$chrs) use ($res) {
+        $packed = pack('s*', ...$chrs);
+
+        if (count($chrs) > 1) {
+            $cmp = $res ? 0xaa55 : 0x55aa;
+            var_dump($cmp, mb_chr($chrs[0], 'utf-16le'), dechex($chrs[0]) === $cmp);
+        }
+
+        return iconv('utf-16le', 'utf-8', $packed);
+    };
+
+    return [
+        'packed' => $toUtf8(...$chrs),
+        'int' => $chrs,
+        'utf-8' => array_map($toUtf8, $chrs),
     ];
-
-    foreach (unpack($fmt, $bin) as $i => $chr) {
-        $chrs[] = $chr;
-    }
-
-    $out['chars'] = $chrs;
-
-    if (! empty($chrs)) {
-        $packed = pack($fmt, ...$chrs);
-        $out['packed'] = iconv('utf-16le', 'utf-8', $packed);
-        print_r($packed);
-    }
-
-    return $out;
 }
 
 do {
+    $decoded = [];
     $sample = $seqs[$seq];
-    $req = str_replace(':', '', $sample->req);
-    $res = str_replace(':', '', $sample->res);
+    $req_hex = str_replace(':', '', $sample->req);
+    $res_hex = str_replace(':', '', $sample->res);
 
-    $msg = hex2bin($req);
+    $msg = hex2bin($req_hex);
 
-    echo sprintf('Sending: %s', $req).PHP_EOL;
-    $sample->req_unpack = p($msg, 's*');
-    $sent = socket_send($sock, $msg, strlen($msg), MSG_EOF);
+    echo sprintf('Sending: %s', $req_hex).PHP_EOL;
+    $decoded['req'] = decode($msg);
+    $sent = socket_write($sock, $msg, strlen($msg));
 
     while ($recv = socket_read($sock, 1024)) {
-        $res_hex = bin2hex($recv);
+        $recv_hex = bin2hex($recv);
 
-        $assert = $res_hex === $res ? 'yes' : $res;
+        $assert = $recv_hex === $res_hex ? 'yes' : $res_hex;
 
-        echo sprintf('Received: %s, expected: %s', $res_hex, $assert).PHP_EOL;
-        $sample->res_unpack = p($recv, 's*', true);
+        echo sprintf('Received: %s, expected: %s', $recv_hex, $assert).PHP_EOL;
+        $decoded['res'] = decode($recv, true);
         break;
     }
 
@@ -80,7 +80,7 @@ do {
         $errors[] = socket_strerror($code);
     }
 
-    $output[] = $sample;
+    $output[] = $decoded;
     $seq++;
 
     echo PHP_EOL;
