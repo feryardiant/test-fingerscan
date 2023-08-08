@@ -31,14 +31,14 @@ $output = [];
 $errors = [];
 
 function decode(string $bin, bool $res = false) {
-    $chrs = array_values(unpack('s*', $bin));
+    $chrs = array_values(unpack('S*', $bin));
 
     $toUtf8 = static function (int ...$chrs) use ($res) {
-        $packed = pack('s*', ...$chrs);
+        $packed = pack('S*', ...$chrs);
+        $cmp = $res ? 0x55aa : 0xaa55;
 
         if (count($chrs) > 1) {
-            $cmp = $res ? 0xaa55 : 0x55aa;
-            var_dump($cmp, mb_chr($chrs[0], 'utf-16le'), dechex($chrs[0]) === $cmp);
+            var_dump($cmp, $chrs[0], $chrs[0] === $cmp);
         }
 
         return iconv('utf-16le', 'utf-8', $packed);
