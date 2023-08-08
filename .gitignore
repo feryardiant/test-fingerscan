@@ -1,0 +1,48 @@
+# Generic
+# --------------------------
+Thumbs.db
+Desktop.ini
+.directory
+.DS_Store
+._*
+*.cache
+*.crt
+*.log
+*.old
+*.key
+*.pem
+*.tmp
+*.zip
+*~
+
+# Development files
+# --------------------------
+.env.*
+.env
+.php-version
+# composer.lock
+coveralls-upload.json
+phpunit.dusk.xml
+node_modules
+resources/*/ziggy.js
+vendor
+
+.firebaserc
+Homestead.json
+Homestead.yaml
+docker-compose.override.yml
+runtime-config.json
+service-account.json
+
+# Node.js lock files
+.pnpm-store
+package-lock.json
+# pnpm-lock.yaml
+yarn.lock
+
+# But Keep these
+# --------------------------
+!.env.example
+!.env.*.example
+!.htaccess
+!.gitkeep
