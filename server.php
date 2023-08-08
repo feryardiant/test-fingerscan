@@ -44,7 +44,7 @@ function req(int ...$chrs) {
     return $parsed;
 }
 
-function res(int ...$chrs) {
+function res(array $req, int ...$chrs) {
     $parsed = [
         'prefix' => $chrs[0],
         'sequence' => $chrs[4],
@@ -71,13 +71,13 @@ function p(array $chrs, bool $convert = false) {
     return $pack;
 }
 
-function decode(string $bin, bool $res = false) {
+function decode(string $bin, array $req = null) {
     $chrs = array_values(unpack('S*', $bin));
 
     return [
         'hex' => array_map('dechex', $chrs),
         'packed' => p($chrs, true),
-        ...($res ? res(...$chrs) : req(...$chrs)),
+        ...(null === $req ? req(...$chrs) : res($req, ...$chrs)),
     ];
 }
 
@@ -99,7 +99,7 @@ do {
         $assert = $recv_hex === $res_hex ? 'yes' : $res_hex;
 
         echo sprintf('Received: %s, expected: %s', $recv_hex, $assert).PHP_EOL;
-        $decoded['res'] = decode($recv, true);
+        $decoded['res'] = decode($recv, $decoded['req']);
         break;
     }
 
