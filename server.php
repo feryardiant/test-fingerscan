@@ -1,5 +1,7 @@
 <?php
 
+use Fingerscan\Device;
+
 set_time_limit(0);
 
 require(__DIR__.'/vendor/autoload.php');
@@ -10,15 +12,7 @@ $server_port = 8080;
 $device_ip = '10.10.2.171';
 $device_port = 5005;
 
-$sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-
-if (false === socket_connect($sock, $device_ip, $device_port)) {
-    $err = socket_strerror(socket_last_error($sock));
-    echo sprintf('Failed to connect %s:%d reason: %s', $device_ip, $device_port, $err);
-
-    socket_close($sock);
-    exit(1);
-}
+$device = new Device($device_ip, $device_port);
 
 $json_str = file_get_contents(__DIR__.'/samples/fingerscan.json');
 $json_obj = json_decode($json_str, false);
@@ -39,7 +33,8 @@ function req(int ...$chrs) {
         'unknown-2' => $chrs[2],
         'suffix' => array_slice($chrs, 8),
     ];
-    var_dump($parsed['payload'], p($parsed['payload']));
+    echo 'Seq: '.$parsed['sequence'].PHP_EOL;
+    var_dump($parsed['payload']);
 
     return $parsed;
 }
@@ -52,7 +47,8 @@ function res(array $req, int ...$chrs) {
         'unknown-1' => $chrs[1],
         'unknown-2' => array_slice($chrs, 2, 2),
     ];
-    var_dump($parsed['unknown-2'], p($parsed['payload']));
+    echo 'Seq: '.$parsed['sequence'].PHP_EOL;
+    var_dump(p($parsed['payload']));
 
     return $parsed;
 }
@@ -65,7 +61,7 @@ function p(array $chrs, bool $convert = false) {
     $pack = pack('S*', ...$chrs);
 
     if ($convert) {
-        return mb_convert_encoding($pack, 'utf-8');
+        return mb_convert_encoding($pack, 'utf-8', 'utf-16le');
     }
 
     return $pack;
@@ -91,40 +87,19 @@ do {
 
     echo sprintf('Sending: %s', $req_hex).PHP_EOL;
     $decoded['req'] = decode($msg);
-    $sent = socket_write($sock, $msg, strlen($msg));
 
-    while ($recv = socket_read($sock, 1024)) {
-        $recv_hex = bin2hex($recv);
+    $recv = $device->send($msg);
+    $recv_hex = bin2hex($recv);
+    $assert = $recv_hex === $res_hex ? 'yes' : $res_hex;
 
-        $assert = $recv_hex === $res_hex ? 'yes' : $res_hex;
-
-        echo sprintf('Received: %s, expected: %s', $recv_hex, $assert).PHP_EOL;
-        $decoded['res'] = decode($recv, $decoded['req']);
-        break;
-    }
-
-    if (false === $recv) {
-        $code = socket_last_error($sock);
-        socket_clear_error($sock);
-
-        $errors[] = socket_strerror($code);
-    }
+    echo sprintf('Received: %s, expected: %s', $recv_hex, $assert).PHP_EOL;
+    $decoded['res'] = decode($recv, $decoded['req']);
 
     $output[] = $decoded;
     $seq++;
 
     echo PHP_EOL;
 } while (isset($seqs[$seq]));
-
-socket_clear_error($sock);
-socket_close($sock);
-
-if (! empty($errors)) {
-    echo 'Errors:'.PHP_EOL;
-    echo implode(PHP_EOL, $errors).PHP_EOL;
-
-    exit(1);
-}
 
 file_put_contents(
     __DIR__."/samples/outputs/{$idx}.json",
