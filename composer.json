@@ -3,6 +3,11 @@
     "description": "[WIP] Experimental library to interacts with fingerprint-scanner devices",
     "type": "library",
     "license": "MIT",
+    "scripts": {
+        "normalize": [
+            "@php bin/command.php"
+        ]
+    },
     "autoload": {
         "psr-4": {
             "Fingerscan\\": "src/"
