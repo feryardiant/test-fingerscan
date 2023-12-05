@@ -1,6 +1,7 @@
 <?php
 
 use Fingerscan\Device;
+use Fingerscan\Payload;
 
 set_time_limit(0);
 
@@ -9,120 +10,129 @@ $cmd_name = $argv[1] ?? null;
 
 require($base_path.'/vendor/autoload.php');
 
-$sample_dir = $base_path.'/samples';
-$server_ip = '10.10.3.19';
-$device_ip = '10.10.3.21';
+class Validator
+{
+    private const SERVER_IP = '10.10.3.19';
 
-$device = new Device($device_ip);
+    private Traversable $data;
 
-function decode(array $data): string {
-    $pack = pack('S*', ...$data);
-
-    return mb_convert_encoding($pack, 'utf-8');
-}
-
-function transform(?string $str, callable $cb = null): ?string {
-    if (! $str) {
-        return null;
+    public function __construct(
+        private Device $device
+    ) {
+        $this->data = new ArrayIterator([]);
     }
 
-    $hex = str_replace(':', '', $str);
-    $bin = hex2bin($hex);
+    public function handle(string $path): static
+    {
+        foreach (scandir("$path/raw") as $file) {
+            if (! str_ends_with($file, '.json')) {
+                continue;
+            }
 
-    return !is_null($cb) ? $cb($bin, $hex) : $bin;
-}
+            [$no, $name] = explode(' - ', $file);
+            $name = str_replace('.json', '', ltrim($name, ' '));
 
-function recv(?string $bin) {
-    $chrs = array_values(unpack('S*', $bin));
-    return count($chrs) > 5 ? array_slice($chrs, 6) : array_slice($chrs, 1, 3);
-}
+            echo PHP_EOL.$name.PHP_EOL.'----'.PHP_EOL;
 
-$trans = static function (array $data) use ($device) {
-    $data['req'] = $data['req'] ?? null;
-    $data['res'] = $data['res'] ?? null;
-    $res = null;
+            $result = $this->content("$path/raw/$file");
 
-    echo "raw: \033[32m{$data['req']} \033[31m➜ \033[32m{$data['res']}\033[0m".PHP_EOL;
+            foreach ($result as $item) {
+                $req = Payload::fromSample($item['req'], 8);
+                $res = Payload::fromSample($item['res'], 6);
 
-    echo transform($data['req'], function (string $bin) use ($device, &$res): string {
-        $chrs = array_values(unpack('S*', $bin));
-        $data = array_slice($chrs, 1, 3);
+                // $test = $this->device->send($req);
 
-        $res = $device->send($bin);
+                // echo 'test: '.$test->encode().PHP_EOL;
 
-        return "req: \033[31m{$chrs[7]}\033[0m \033[33m".decode($data)."\033[0m";
-    }).PHP_EOL;
+                echo "\033[0mraw: \033[033m{$req} \033[31m➜ \033[32m{$res}".PHP_EOL;
 
-    echo transform($data['res'], function (string $bin) use ($res): string {
-        $expect = recv($bin);
-        $actual = recv($res);
+                echo "\033[0mpre: \033[033m{$req->chars(0)} \033[0m({$req->pack(0)}) ";
+                echo "\033[31m➜ \033[32m{$res->chars(0)} \033[0m({$res->pack(0)}) ";
+                echo "\033[0m[\033[33m{$req->chars(7)}\033[31m:\033[32m{$res->chars(4)}\033[0m]".PHP_EOL;
 
-        var_dump(implode(':', $expect), implode(':', $actual));
+                echo "\033[0mcmd: \033[33m{$req->slice(1, 6)} \033[0m({$req->pack(1, 6)}) ";
+                echo "\033[31m➜ \033[32m{$res->slice(1, 3)} \033[0m({$res->pack(1, 3)})".PHP_EOL;
 
-        return "res: \033[33m".decode($expect)." \033[31m: \033[33m".decode($actual)."";
-    }).PHP_EOL;
+                echo $this->data($req, $res);
 
-    echo '----'.PHP_EOL;
+                echo PHP_EOL;
+            }
 
-    return $data;
-};
+            $this->data[$name] = $result;
 
-$normalized = [];
-
-foreach (scandir($sample_dir.'/raw') as $file) {
-    if (! str_ends_with($file, '.json')) {
-        continue;
-    }
-
-    $result = [];
-    $content = file_get_contents($sample_dir.'/raw/'.$file);
-
-    foreach (json_decode($content, true) as $raw) {
-        $obj = $raw['_source']['layers'];
-        $tcp = $obj['tcp'];
-
-        if (! isset($tcp['tcp.payload'])) {
-            continue;
+            $this->writeJson("$path/outputs/$no $name", $result);
         }
 
-        // is request
-        if ($obj['ip']['ip.src'] === $server_ip) {
-            $result[$tcp['tcp.ack']]['req'] = $tcp['tcp.payload'];
-        }
+        $this->writeJson($path.'/outputs/normalized');
 
-        // is response
-        if ($obj['ip']['ip.src'] === $device_ip) {
-            $result[$tcp['tcp.seq']]['res'] = $tcp['tcp.payload'];
-        }
+        return $this;
     }
 
-    [$no, $name] = explode('-', $file);
-    $name = ltrim($name, ' ');
-    $result = array_values($result);
+    private function data(Payload $req, Payload $res): string
+    {
+        $reqData = $req->data();
+        $resData = $res->data();
 
-    if ($cmd_name === $name) {
-        echo PHP_EOL.$name.PHP_EOL.'----'.PHP_EOL;
-        array_map($trans, $result);
+        if (! $reqData && ! $resData) {
+            return '';
+        }
+
+        $return = 'data: ';
+
+        if ($reqData) {
+            $return .= "\033[33m{$reqData} \033[0m({$req->encode()})";
+        }
+
+        if ($resData) {
+            $return .= "\033[31m➜ \033[32m{$resData} \033[0m({$res->encode()})";
+        }
+
+        return $return.PHP_EOL;
     }
 
-    $normalized[$name] = $result;
-}
+    private function content(string $path): array
+    {
+        $content = file_get_contents($path);
+        $result = [];
 
-if ($cmd_name === null) {
-    foreach ($normalized as $name => $results) {
-        echo PHP_EOL.$name.PHP_EOL.'----'.PHP_EOL;
+        foreach (json_decode($content, true) as $item) {
+            $obj = $item['_source']['layers'];
+            $tcp = $obj['tcp'];
 
-        foreach ($results as $i => $data) {
-            $trans($data);
+            if (! isset($tcp['tcp.payload'])) {
+                continue;
+            }
 
-            if ($i === 7) {
-                break;
+            // is request
+            if ($obj['ip']['ip.src'] === self::SERVER_IP) {
+                $result[$tcp['tcp.ack']]['req'] = $tcp['tcp.payload'];
+            }
+
+            // is response
+            if ($obj['ip']['ip.src'] === $this->device->ip) {
+                $result[$tcp['tcp.seq']]['res'] = $tcp['tcp.payload'];
             }
         }
+
+        return array_values($result);
+    }
+
+    private function writeJson(string $path, array $content = []): void
+    {
+        $content = empty($content) ? $this->data : $content;
+
+        file_put_contents("$path.json", json_encode($content, JSON_PRETTY_PRINT));
     }
 }
 
-file_put_contents(
-    $sample_dir.'/outputs/normalized.json',
-    json_encode($normalized, JSON_PRETTY_PRINT)
-);
+try {
+    $device = new Device('10.10.3.15');
+    $validator = new Validator($device);
+
+    $validator->handle($base_path.'/samples');
+
+    exit(0);
+} catch (Throwable $e) {
+    echo $e->getMessage().PHP_EOL;
+    exit(1);
+}

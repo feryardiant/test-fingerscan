@@ -17,9 +17,9 @@ class Device
         }
     }
 
-    public function send(string $msg): ?string
+    public function send(Payload $msg): Payload
     {
-        $sent = socket_write($this->sock, $msg, strlen($msg));
+        $sent = socket_write($this->sock, $msg->bin, $msg->count());
 
         if (false === $sent) {
             $this->throwError();
@@ -33,7 +33,7 @@ class Device
             break;
         }
 
-        return $recv;
+        return new Payload($recv, 6);
     }
 
     protected function throwError(): void
