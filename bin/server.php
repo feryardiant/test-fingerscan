@@ -4,7 +4,9 @@ use Fingerscan\Device;
 
 set_time_limit(0);
 
-require(__DIR__.'/vendor/autoload.php');
+$base_path = dirname(__DIR__);
+
+require($base_path.'/vendor/autoload.php');
 
 $server_ip = '10.10.0.10';
 $server_port = 8080;
@@ -14,7 +16,7 @@ $device_port = 5005;
 
 $device = new Device($device_ip, $device_port);
 
-$json_str = file_get_contents(__DIR__.'/samples/fingerscan.json');
+$json_str = file_get_contents($base_path.'/samples/fingerscan.json');
 $json_obj = json_decode($json_str, false);
 
 $idx = (int) $argv[1] ?? 0;
