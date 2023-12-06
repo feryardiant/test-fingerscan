@@ -11,8 +11,6 @@ require($base_path.'/vendor/autoload.php');
 
 class Command
 {
-    private const SERVER_IP = '10.10.3.19';
-
     private Traversable $data;
 
     public function __construct(
@@ -108,9 +106,33 @@ class Command
         return $return.PHP_EOL;
     }
 
-    private function content(string $path): array
+    private function normalize(string $path, callable $cb): void
     {
-        $content = file_get_contents($path);
+        foreach (scandir($path.'/raw') as $file) {
+            if (! str_ends_with($file, '.json')) {
+                continue;
+            }
+
+            [$no, $name] = explode(' - ', $file);
+            $name = str_replace('.json', '', ltrim($name, ' '));
+
+            // Read normalized data if exists.
+            $result = file_exists("$path/outputs/$file")
+                ? $this->readJson("$path/outputs/$file")
+                : $this->parseRaw("$path/raw/$file");
+
+            $this->writeJson("$path/outputs/$no - $name", $result);
+
+            $this->data[$name] = $result;
+
+            $cb($result, $name);
+        }
+
+        $this->writeJson($path.'/outputs/normalized');
+    }
+
+    private function parseRaw(string $path): array
+    {
         $result = [];
         $json = $this->readJson($path);
 
