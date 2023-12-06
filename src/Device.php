@@ -17,9 +17,9 @@ class Device
         }
     }
 
-    public function send(Payload $msg): Payload
+    public function send(Payload $cmd): Payload
     {
-        $sent = socket_write($this->sock, $msg->bin, $msg->count());
+        $sent = socket_write($this->sock, $cmd, $cmd->length());
 
         if (false === $sent) {
             $this->throwError();

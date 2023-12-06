@@ -2,11 +2,11 @@
 
 namespace Fingerscan;
 
-class Payload implements \Stringable, \Countable
+class Payload implements \Stringable
 {
     private const FORMAT = 'S*';
 
-    private static ?string $raw = null;
+    public static ?string $raw = null;
     private ?array $chars = null;
 
     public function __construct(
@@ -64,9 +64,9 @@ class Payload implements \Stringable, \Countable
         // return \bin2hex($packed);
     }
 
-    public function count(): int
+    public function length(): int
     {
-        return \strlen($this->bin) / 2;
+        return \mb_strlen($this->bin);
     }
 
     public function slice(int $start, int $length = null): string
@@ -86,6 +86,6 @@ class Payload implements \Stringable, \Countable
 
     public function __toString(): string
     {
-        return self::$raw;
+        return $this->bin;
     }
 }

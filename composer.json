@@ -4,7 +4,7 @@
     "type": "library",
     "license": "MIT",
     "scripts": {
-        "normalize": [
+        "check:device": [
             "@php bin/command.php"
         ]
     },
