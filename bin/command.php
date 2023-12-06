@@ -21,28 +21,13 @@ class Command
 
     public function run(string $path, $cmd = null): static
     {
-        foreach (scandir("$path/raw") as $file) {
-            if (! str_ends_with($file, '.json')) {
-                continue;
-            }
-
-            [$no, $name] = explode(' - ', $file);
-            $name = str_replace('.json', '', ltrim($name, ' '));
-
-            $result = $this->content("$path/raw/$file");
-
-            $this->data[$name] = $result;
-
+        $this->normalize($path, function (array $result, string $name) use ($cmd) {
             if ($cmd === null) {
                 echo PHP_EOL.$name.PHP_EOL.'----'.PHP_EOL;
 
                 $this->dump($result);
             }
-
-            $this->writeJson("$path/outputs/$no $name", $result);
-        }
-
-        $this->writeJson($path.'/outputs/normalized');
+        });
 
         if ($cmd) {
             if (! isset($this->data[$cmd])) {
@@ -66,19 +51,22 @@ class Command
 
             echo "\033[0mraw: \033[033m{$item['req']} \033[31m➜ \033[32m{$item['res']}".PHP_EOL;
 
-            echo "\033[0mpre: \033[033m{$req->chars(0)} \033[0m({$req->pack(0)}) ";
-            echo "\033[31m➜ \033[32m{$res->chars(0)} \033[0m({$res->pack(0)}) ";
+            echo "\033[0mpre: \033[033m{$req->chars(0)} \033[0m({$req->pack(0, 1)}) ";
+            echo "\033[31m➜ \033[32m{$res->chars(0)} \033[0m({$res->pack(0, 1)}) ";
             echo "\033[0m[\033[33m{$req->chars(7)}\033[31m:\033[32m{$res->chars(4)}\033[0m]".PHP_EOL;
 
-            echo "\033[0mcmd: \033[33m{$req->slice(1, 6)} \033[0m({$req->pack(1, 6)}) ";
-            echo "\033[31m➜ \033[32m{$res->slice(1, 3)} \033[0m({$res->pack(1, 3)})".PHP_EOL;
+            echo "\033[0mcmd: \033[33m{$req->segment(1, 6)} \033[0m({$req->pack(1, 6)}) ";
+            echo "\033[31m➜ \033[32m{$res->segment(1, 3)} \033[0m({$res->pack(1, 3)})".PHP_EOL;
 
             echo $this->data($req, $res);
 
             $test = $this->device->send($req);
 
-            echo PHP_EOL."chk[\033[34m{$test->chars(4)}\033[0m] \033[34m{$test->pack(1, 3)}\033[0m".PHP_EOL,
-                "\033[34m{$test->encode()}\033[0m".PHP_EOL;
+            echo PHP_EOL."chk[\033[34m{$test->chars(4)}\033[0m] \033[34m{$test->pack(1, 3)}\033[0m".PHP_EOL;
+
+            if ($payload = $test->encode()) {
+                echo "\033[34m{$payload}\033[0m".PHP_EOL;
+            }
 
             echo PHP_EOL;
         }
