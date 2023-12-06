@@ -31,24 +31,27 @@ class Command
             $this->dump($result);
         });
 
-        if ($cmd) {
-            if (! isset($this->data[$cmd])) {
-                echo PHP_EOL."\033[31mCommand '$cmd' not found\033[0m".PHP_EOL;
-                return $this;
-            }
-
-            echo PHP_EOL.$cmd.PHP_EOL.'----'.PHP_EOL;
-
-            $this->dump($this->data[$cmd], function (Payload $req) {
-                $test = $this->device->send($req);
-
-                echo PHP_EOL."chk[\033[34m{$test->chars(4)}\033[0m] \033[34m{$test->pack(1, 3)}\033[0m".PHP_EOL;
-
-                if ($payload = $test->encode()) {
-                    echo "\033[34m{$payload}\033[0m".PHP_EOL;
-                }
-            });
+        if (!$cmd) {
+            return $this;
         }
+
+        if (!isset($this->data[$cmd])) {
+            echo PHP_EOL."\033[31mCommand '$cmd' not found\033[0m".PHP_EOL;
+            return $this;
+        }
+
+        echo PHP_EOL.$cmd.PHP_EOL.'----'.PHP_EOL;
+
+        $this->dump($this->data[$cmd], function (Payload $req) {
+            $test = $this->device->send($req);
+
+            echo PHP_EOL."\033[0mchk[\033[34m{$test->sequence()}\033[0m] \033[34m{$test->command(imploded: true)}\033[0m".PHP_EOL;
+
+            if ($payload = $test->body(imploded: true)) {
+                echo $test->data(true).PHP_EOL;
+                echo "\033[34m{$payload}\033[0m".PHP_EOL;
+            }
+        });
 
         return $this;
     }
@@ -61,12 +64,10 @@ class Command
 
             echo "\033[0mraw: \033[033m{$item['req']} \033[31m➜ \033[32m{$item['res']}".PHP_EOL;
 
-            echo "\033[0mpre: \033[033m{$req->chars(0)} \033[0m({$req->pack(0, 1)}) ";
-            echo "\033[31m➜ \033[32m{$res->chars(0)} \033[0m({$res->pack(0, 1)}) ";
-            echo "\033[0m[\033[33m{$req->chars(7)}\033[31m:\033[32m{$res->chars(4)}\033[0m]".PHP_EOL;
+            echo "\033[0mpre: \033[033m{$req->prefix()} \033[31m➜ \033[32m{$res->prefix()} ";
+            echo "\033[0m[\033[33m{$req->sequence()}\033[31m:\033[32m{$res->sequence()}\033[0m]".PHP_EOL;
 
-            echo "\033[0mcmd: \033[33m{$req->segment(1, 6)} \033[0m({$req->pack(1, 6)}) ";
-            echo "\033[31m➜ \033[32m{$res->segment(1, 3)} \033[0m({$res->pack(1, 3)})".PHP_EOL;
+            echo "\033[0mcmd: \033[33m{$req->command(imploded: true)} \033[31m➜ \033[32m{$res->command(imploded: true)}".PHP_EOL;
 
             echo $this->data($req, $res);
 
@@ -80,24 +81,24 @@ class Command
 
     private function data(Payload $req, Payload $res): string
     {
-        $reqData = $req->data();
-        $resData = $res->data();
+        $reqData = $req->body(imploded: true);
+        $resData = $res->body(imploded: true);
 
         if (! $reqData && ! $resData) {
             return '';
         }
 
-        $return = 'data: ';
+        $return = "\033[0mdata: ";
 
         if ($reqData) {
-            $return .= "\033[33m{$reqData} \033[0m({$req->encode()})";
+            $return .= "\033[33m{$reqData}";
         }
 
         if ($resData) {
-            $return .= "\033[31m➜ \033[32m{$resData} \033[0m({$res->encode()})";
+            $return .= "\033[31m➜ \033[32m{$resData}";
         }
 
-        return $return.PHP_EOL;
+        return $return."\033[0m".PHP_EOL;
     }
 
     private function normalize(string $path, callable $cb): void

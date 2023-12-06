@@ -2,10 +2,10 @@
 
 namespace Fingerscan;
 
-class Payload implements \Stringable
+class Payload implements \Stringable, \Countable
 {
     public const TYPE_RESPONSE = 6;
-    public const TYPE_REQUEST = 8;
+    public const TYPE_REQUEST = 9;
 
     private const FORMAT = 'S*';
 
@@ -45,39 +45,6 @@ class Payload implements \Stringable
         return $index === null ? $this->chars : $this->chars[$index];
     }
 
-    public function pack(int $start = null, int $length = null): string
-    {
-        $result = [];
-        foreach ($this->slice($start, $length) as $char) {
-            $char = \dechex($char);
-            // $char = pack(self::FORMAT, $char);
-            // $char = \mb_convert_encoding($char, 'utf-8');
-            // $char = implode(':', array_map(function($byte) {
-            //     // return sprintf("%08b", ord($byte));
-            //     return mb_ord($byte);
-            // }, str_split($char)));
-
-            $result[] = $char;
-        }
-
-        return \implode(' ', $result);
-
-        // $packed = pack(self::FORMAT, ...$chars);
-
-        // return \mb_convert_encoding($packed, 'utf-8');
-        // return \bin2hex($packed);
-    }
-
-    public function length(): int
-    {
-        return \mb_strlen($this->bin);
-    }
-
-    public function segment(int $start, int $length = null): string
-    {
-        return implode(':', $this->slice($start, $length));
-    }
-
     public function slice(int $start = null, int $length = null): array
     {
         if ($start === null) {
@@ -87,14 +54,48 @@ class Payload implements \Stringable
         return array_slice($this->chars(), $start, $length);
     }
 
-    public function encode()
+    public function prefix(bool $raw = false): string|int
     {
-        return $this->pack($this->index, null);
+        $pre = $this->chars(0);
+
+        return $raw ? $pre : \dechex($pre);
     }
 
-    public function data()
+    public function command(bool $raw = false, bool $imploded = false): array|string
     {
-        return $this->segment($this->index);
+        $chars = $this->slice(1, match ($this->index) {
+            self::TYPE_RESPONSE => 3,
+            self::TYPE_REQUEST => 6,
+        });
+
+        $commands = $raw ? $chars : array_map('dechex', $chars);
+
+        return $imploded ? \implode(' ', $commands) : $commands;
+    }
+
+    public function body(bool $raw = false, bool $imploded = false): array|string
+    {
+        $chars = $this->slice($this->index);
+
+        $commands = $raw ? $chars : array_map('dechex', $chars);
+
+        return $imploded ? \implode(' ', $commands) : $commands;
+    }
+
+    public function data(bool $imploded = false): array|string
+    {
+        $results = \array_map(function (int $char) {
+            $char = pack(self::FORMAT, $char);
+            $char = \mb_convert_encoding($char, 'utf-8');
+            // $char = implode(':', array_map(function($byte) {
+            //     // return sprintf("%08b", ord($byte));
+            //     return mb_ord($byte);
+            // }, str_split($char)));
+
+            return $char;
+        }, $this->body(true));
+
+        return $imploded ? implode('', $results) : $results;
     }
 
     public function sequence(): int
@@ -103,6 +104,11 @@ class Payload implements \Stringable
             self::TYPE_RESPONSE => 4,
             self::TYPE_REQUEST => 7,
         });
+    }
+
+    public function count(): int
+    {
+        return \mb_strlen($this->bin);
     }
 
     public function __toString(): string

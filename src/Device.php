@@ -19,7 +19,7 @@ class Device
 
     public function send(Payload $cmd): Payload
     {
-        $sent = socket_write($this->sock, $cmd, $cmd->length());
+        $sent = socket_write($this->sock, $cmd, $cmd->count());
 
         if (false === $sent) {
             $this->throwError();
