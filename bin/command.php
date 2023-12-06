@@ -112,22 +112,27 @@ class Command
     {
         $content = file_get_contents($path);
         $result = [];
+        $json = $this->readJson($path);
 
-        foreach (json_decode($content, true) as $item) {
+        // Retrieve first packet from the json file.
+        $conn = $json[0]['_source']['layers']['ip'];
+
+        foreach ($json as $item) {
             $obj = $item['_source']['layers'];
             $tcp = $obj['tcp'];
 
+            // Skip if there's no payload.
             if (! isset($tcp['tcp.payload'])) {
                 continue;
             }
 
-            // is request
-            if ($obj['ip']['ip.src'] === self::SERVER_IP) {
+            // Retrieve request payload.
+            if ($obj['ip']['ip.src'] === $conn['ip.src']) {
                 $result[$tcp['tcp.ack']]['req'] = $tcp['tcp.payload'];
             }
 
-            // is response
-            if ($obj['ip']['ip.src'] === $this->device->ip) {
+            // Retrieve response payload.
+            if ($obj['ip']['ip.src'] === $conn['ip.dst']) {
                 $result[$tcp['tcp.seq']]['res'] = $tcp['tcp.payload'];
             }
         }
@@ -135,16 +140,27 @@ class Command
         return array_values($result);
     }
 
+    private function readJson(string $path): array
+    {
+        $content = file_get_contents($path);
+
+        return json_decode($content, true);
+    }
+
     private function writeJson(string $path, array $content = []): void
     {
+        if (file_exists($filepath = "$path.json")) {
+            return;
+        }
+
         $content = empty($content) ? $this->data : $content;
 
-        file_put_contents("$path.json", json_encode($content, JSON_PRETTY_PRINT));
+        file_put_contents($filepath, json_encode($content, JSON_PRETTY_PRINT));
     }
 }
 
 try {
-    $device = new Device('10.10.3.15');
+    $device = new Device('10.10.3.18');
     $command = new Command($device);
 
     $command->run($base_path.'/samples', $argv[1] ?? null);
