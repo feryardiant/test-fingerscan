@@ -97,6 +97,14 @@ class Payload implements \Stringable
         return $this->segment($this->index);
     }
 
+    public function sequence(): int
+    {
+        return $this->chars(match ($this->index) {
+            self::TYPE_RESPONSE => 4,
+            self::TYPE_REQUEST => 7,
+        });
+    }
+
     public function __toString(): string
     {
         return $this->bin;
