@@ -22,11 +22,13 @@ class Command
     public function run(string $path, $cmd = null): static
     {
         $this->normalize($path, function (array $result, string $name) use ($cmd) {
-            if ($cmd === null) {
-                echo PHP_EOL.$name.PHP_EOL.'----'.PHP_EOL;
-
-                $this->dump($result);
+            if ($cmd !== null) {
+                return;
             }
+
+            echo PHP_EOL.$name.PHP_EOL.'----'.PHP_EOL;
+
+            $this->dump($result);
         });
 
         if ($cmd) {
@@ -37,13 +39,21 @@ class Command
 
             echo PHP_EOL.$cmd.PHP_EOL.'----'.PHP_EOL;
 
-            $this->dump($this->data[$cmd]);
+            $this->dump($this->data[$cmd], function (Payload $req) {
+                $test = $this->device->send($req);
+
+                echo PHP_EOL."chk[\033[34m{$test->chars(4)}\033[0m] \033[34m{$test->pack(1, 3)}\033[0m".PHP_EOL;
+
+                if ($payload = $test->encode()) {
+                    echo "\033[34m{$payload}\033[0m".PHP_EOL;
+                }
+            });
         }
 
         return $this;
     }
 
-    private function dump(array $data): void
+    private function dump(array $data, callable $cb = null): void
     {
         foreach ($data as $item) {
             $req = Payload::fromSample($item['req'], Payload::TYPE_REQUEST);
@@ -60,12 +70,8 @@ class Command
 
             echo $this->data($req, $res);
 
-            $test = $this->device->send($req);
-
-            echo PHP_EOL."chk[\033[34m{$test->chars(4)}\033[0m] \033[34m{$test->pack(1, 3)}\033[0m".PHP_EOL;
-
-            if ($payload = $test->encode()) {
-                echo "\033[34m{$payload}\033[0m".PHP_EOL;
+            if ($cb !== null) {
+                $cb($req);
             }
 
             echo PHP_EOL;
@@ -173,7 +179,7 @@ try {
     $device = new Device('10.10.3.18');
     $command = new Command($device);
 
-    $command->run($base_path.'/samples', $argv[1] ?? null);
+    $command->run($base_path.'/samples', ...array_slice($argv, 1));
 
     exit(0);
 } catch (Throwable $e) {
