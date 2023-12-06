@@ -33,7 +33,7 @@ class Device
             break;
         }
 
-        return new Payload($recv, 6);
+        return Payload::asResponse($recv);
     }
 
     protected function throwError(): void

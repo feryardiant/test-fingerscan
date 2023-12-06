@@ -4,6 +4,9 @@ namespace Fingerscan;
 
 class Payload implements \Stringable
 {
+    public const TYPE_RESPONSE = 6;
+    public const TYPE_REQUEST = 8;
+
     private const FORMAT = 'S*';
 
     public static ?string $raw = null;
@@ -14,6 +17,11 @@ class Payload implements \Stringable
         protected int $index,
     ) {
         // .
+    }
+
+    public static function asResponse(string $bin): static
+    {
+        return new static($bin, self::TYPE_RESPONSE);
     }
 
     public static function fromSample(string $sample, int $index): self

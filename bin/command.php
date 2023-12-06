@@ -61,8 +61,8 @@ class Command
     private function dump(array $data): void
     {
         foreach ($data as $item) {
-            $req = Payload::fromSample($item['req'], 8);
-            $res = Payload::fromSample($item['res'], 6);
+            $req = Payload::fromSample($item['req'], Payload::TYPE_REQUEST);
+            $res = Payload::fromSample($item['res'], Payload::TYPE_RESPONSE);
 
             echo "\033[0mraw: \033[033m{$item['req']} \033[31m➜ \033[32m{$item['res']}".PHP_EOL;
 
