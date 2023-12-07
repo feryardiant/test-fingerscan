@@ -13,13 +13,12 @@ class Command
 {
     private Traversable $data;
 
-    public function __construct(
-        private Device $device
-    ) {
+    public function __construct()
+    {
         $this->data = new ArrayIterator([]);
     }
 
-    public function run(string $path, $cmd = null): static
+    public function run(string $path, $cmd = null, $ip = null): static
     {
         $this->normalize($path, function (array $result, string $name) use ($cmd) {
             if ($cmd !== null) {
@@ -42,15 +41,19 @@ class Command
 
         echo PHP_EOL.$cmd.PHP_EOL.'----'.PHP_EOL;
 
-        $this->dump($this->data[$cmd], function (Payload $req) {
-            // $test = $this->device->send($req);
+        $this->dump($this->data[$cmd], function (Payload $req) use ($ip) {
+            if (! $ip) {
+                return;
+            }
 
-            // echo PHP_EOL."\033[0mchk[\033[34m{$test->sequence()}\033[0m] \033[34m{$test->command(imploded: true)}\033[0m".PHP_EOL;
+            $test = (new Device($ip))->send($req);
 
-            // if ($payload = $test->body(imploded: true)) {
-            //     echo $test->data(true).PHP_EOL;
-            //     echo "\033[34m{$payload}\033[0m".PHP_EOL;
-            // }
+            echo PHP_EOL."\033[0mchk[\033[34m{$test->sequence()}\033[0m] \033[34m{$test->command(imploded: true)}\033[0m".PHP_EOL;
+
+            if ($payload = $test->body(imploded: true)) {
+                echo $test->data(true).PHP_EOL;
+                echo "\033[34m{$payload}\033[0m".PHP_EOL;
+            }
         });
 
         return $this;
