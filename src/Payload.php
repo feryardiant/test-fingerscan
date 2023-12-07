@@ -2,6 +2,8 @@
 
 namespace Fingerscan;
 
+use IntlChar;
+
 class Payload implements \Stringable, \Countable
 {
     public const TYPE_RESPONSE = 6;
@@ -90,6 +92,7 @@ class Payload implements \Stringable, \Countable
             return $reduced;
         }, []);
 
+        // \var_dump($chars);
         $result = $raw ? $chars : array_map($callback ?: 'dechex', $chars);
 
         return $imploded ? \implode(' ', $result) : $result;
@@ -102,14 +105,19 @@ class Payload implements \Stringable, \Countable
                 return ' ';
             }
 
-            $encodings = ['ascii', 'utf-16le'];
-            $char = pack(self::FORMAT, $char);
-            // $char = \mb_detect_encoding($char, $encodings, true);
-            $char = \mb_convert_encoding($char, 'utf-8', $encodings);
+            // $char = pack(self::FORMAT, $char);
+            $encoding = \mb_detect_encoding($char, ['utf-16le', 'ascii'], true);
+
+            if (\strtolower($encoding) === 'ascii') {
+                return \mb_convert_encoding(pack(self::FORMAT, $char), 'utf-8', $encoding);
+            }
+            // return $encodings;
+            // $decoded = IntlChar::chr($char);
 
             return $char;
         });
 
+        \var_dump($result);
         return $imploded ? implode('', $result) : $result;
     }
 

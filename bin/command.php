@@ -43,14 +43,14 @@ class Command
         echo PHP_EOL.$cmd.PHP_EOL.'----'.PHP_EOL;
 
         $this->dump($this->data[$cmd], function (Payload $req) {
-            $test = $this->device->send($req);
+            // $test = $this->device->send($req);
 
-            echo PHP_EOL."\033[0mchk[\033[34m{$test->sequence()}\033[0m] \033[34m{$test->command(imploded: true)}\033[0m".PHP_EOL;
+            // echo PHP_EOL."\033[0mchk[\033[34m{$test->sequence()}\033[0m] \033[34m{$test->command(imploded: true)}\033[0m".PHP_EOL;
 
-            if ($payload = $test->body(imploded: true)) {
-                echo $test->data(true).PHP_EOL;
-                echo "\033[34m{$payload}\033[0m".PHP_EOL;
-            }
+            // if ($payload = $test->body(imploded: true)) {
+            //     echo $test->data(true).PHP_EOL;
+            //     echo "\033[34m{$payload}\033[0m".PHP_EOL;
+            // }
         });
 
         return $this;
@@ -87,19 +87,20 @@ class Command
         }
 
         $return = "\033[0mdata: ";
-        $decode = null;
+        $decode = '';
 
         if ($reqData) {
-            $return .= "\033[33m{$reqData}";
-            $decode = $req->data(imploded: true);
+            $return .= "\033[33m".$reqData;
+            $decode .= "\033[33m".$req->data(imploded: true);
         }
 
         if ($resData) {
-            $return .= "\033[31m➜ \033[32m{$resData}";
+            $return .= "\033[31m➜ \033[32m".$resData;
+            $decode .= "\033[31m➜ \033[32m".$res->data(imploded: true);
         }
 
         if ($decode) {
-            $return .= PHP_EOL."\033[0m \033[34m{$decode}";
+            $return .= PHP_EOL.$decode."\033[0m";
         }
 
         return $return."\033[0m".PHP_EOL;
