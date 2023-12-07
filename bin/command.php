@@ -64,10 +64,8 @@ class Command
 
             echo "\033[0mraw: \033[033m{$item['req']} \033[31m➜ \033[32m{$item['res']}".PHP_EOL;
 
-            echo "\033[0mpre: \033[033m{$req->prefix()} \033[31m➜ \033[32m{$res->prefix()} ";
+            echo "\033[0mcmd: \033[33m{$req->command(imploded: true)} \033[31m➜ \033[32m{$res->command(imploded: true)} ";
             echo "\033[0m[\033[33m{$req->sequence()}\033[31m:\033[32m{$res->sequence()}\033[0m]".PHP_EOL;
-
-            echo "\033[0mcmd: \033[33m{$req->command(imploded: true)} \033[31m➜ \033[32m{$res->command(imploded: true)}".PHP_EOL;
 
             echo $this->data($req, $res);
 
@@ -89,13 +87,19 @@ class Command
         }
 
         $return = "\033[0mdata: ";
+        $decode = null;
 
         if ($reqData) {
             $return .= "\033[33m{$reqData}";
+            $decode = $req->data(imploded: true);
         }
 
         if ($resData) {
             $return .= "\033[31m➜ \033[32m{$resData}";
+        }
+
+        if ($decode) {
+            $return .= PHP_EOL."\033[0m \033[34m{$decode}";
         }
 
         return $return."\033[0m".PHP_EOL;

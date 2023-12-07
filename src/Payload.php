@@ -9,7 +9,6 @@ class Payload implements \Stringable, \Countable
 
     private const FORMAT = 'S*';
 
-    public static ?string $raw = null;
     private ?array $chars = null;
 
     public function __construct(
@@ -26,7 +25,6 @@ class Payload implements \Stringable, \Countable
 
     public static function fromSample(string $sample, int $index): self
     {
-        self::$raw = $sample;
         $hex = str_replace(':', '', $sample);
 
         return new static(hex2bin($hex), $index);
@@ -84,16 +82,35 @@ class Payload implements \Stringable, \Countable
 
     public function data(bool $imploded = false): array|string
     {
+        $spaces = 0;
+        $reduced = \array_reduce($this->body(true), function (array $reduced, int $item) use (&$spaces) {
+            if ($item !== 0) {
+                $spaces = 0;
+                $reduced[] = $item;
+
+                return $reduced;
+            }
+
+            if ($spaces === 0) {
+                $reduced[] = $item;
+            }
+
+            $spaces++;
+            return $reduced;
+        }, []);
+
         $results = \array_map(function (int $char) {
+            if ($char === 0) {
+                return ' ';
+            }
+
+            $encodings = ['auto'];
             $char = pack(self::FORMAT, $char);
-            $char = \mb_convert_encoding($char, 'utf-8');
-            // $char = implode(':', array_map(function($byte) {
-            //     // return sprintf("%08b", ord($byte));
-            //     return mb_ord($byte);
-            // }, str_split($char)));
+            // $char = \mb_detect_encoding($char, $encodings, true);
+            $char = \mb_convert_encoding($char, 'utf-8', $encodings);
 
             return $char;
-        }, $this->body(true));
+        }, $reduced);
 
         return $imploded ? implode('', $results) : $results;
     }
