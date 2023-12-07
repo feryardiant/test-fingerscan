@@ -25,12 +25,10 @@ class Device
             $this->throwError();
         }
 
-        while ($recv = socket_read($this->sock, 1024)) {
-            if (false === $recv) {
-                $this->throwError();
-            }
+        $recv = socket_read($this->sock, 2048);
 
-            break;
+        if (false === $recv) {
+            $this->throwError();
         }
 
         return Payload::asResponse($recv);

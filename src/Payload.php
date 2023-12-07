@@ -71,19 +71,10 @@ class Payload implements \Stringable, \Countable
         return $imploded ? \implode(' ', $commands) : $commands;
     }
 
-    public function body(bool $raw = false, bool $imploded = false): array|string
-    {
-        $chars = $this->slice($this->index);
-
-        $commands = $raw ? $chars : array_map('dechex', $chars);
-
-        return $imploded ? \implode(' ', $commands) : $commands;
-    }
-
-    public function data(bool $imploded = false): array|string
+    public function body(bool $raw = false, bool $imploded = false, \Closure $callback = null): array|string
     {
         $spaces = 0;
-        $reduced = \array_reduce($this->body(true), function (array $reduced, int $item) use (&$spaces) {
+        $chars = \array_reduce($this->slice($this->index), function (array $reduced, int $item) use (&$spaces) {
             if ($item !== 0) {
                 $spaces = 0;
                 $reduced[] = $item;
@@ -99,20 +90,27 @@ class Payload implements \Stringable, \Countable
             return $reduced;
         }, []);
 
-        $results = \array_map(function (int $char) {
+        $result = $raw ? $chars : array_map($callback ?: 'dechex', $chars);
+
+        return $imploded ? \implode(' ', $result) : $result;
+    }
+
+    public function data(bool $imploded = false): array|string
+    {
+        $result = $this->body(callback: function (int $char) {
             if ($char === 0) {
                 return ' ';
             }
 
-            $encodings = ['auto'];
+            $encodings = ['ascii', 'utf-16le'];
             $char = pack(self::FORMAT, $char);
             // $char = \mb_detect_encoding($char, $encodings, true);
             $char = \mb_convert_encoding($char, 'utf-8', $encodings);
 
             return $char;
-        }, $reduced);
+        });
 
-        return $imploded ? implode('', $results) : $results;
+        return $imploded ? implode('', $result) : $result;
     }
 
     public function sequence(): int
