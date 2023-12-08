@@ -86,20 +86,13 @@ class Command
         }
 
         $return = "\033[0mdata: ";
-        $decode = '';
 
         if ($reqData) {
-            $return .= "\033[33m".$reqData;
-            $decode .= "\033[33m".$req->data(imploded: true);
+            $return .= "\033[33m{$req->data(imploded: true)} \033[0m($reqData)";
         }
 
         if ($resData) {
-            $return .= "\033[31m➜ \033[32m".$resData;
-            $decode .= "\033[31m➜ \033[32m".$res->data(imploded: true);
-        }
-
-        if ($decode) {
-            $return .= PHP_EOL.$decode."\033[0m";
+            $return .= "\033[31m➜ \033[32m{$res->data(imploded: true)} \033[0m({$resData})";
         }
 
         return $return."\033[0m".PHP_EOL;

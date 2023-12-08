@@ -12,6 +12,7 @@ class Payload implements \Stringable, \Countable
     private const FORMAT = 'S*';
 
     private ?array $chars = null;
+    private array $body = [];
 
     public function __construct(
         readonly public string $bin,
@@ -75,25 +76,25 @@ class Payload implements \Stringable, \Countable
 
     public function body(bool $raw = false, bool $imploded = false, \Closure $callback = null): array|string
     {
-        $spaces = 0;
-        $chars = \array_reduce($this->slice($this->index), function (array $reduced, int $item) use (&$spaces) {
-            if ($item !== 0) {
-                $spaces = 0;
-                $reduced[] = $item;
+        if (empty($this->body)) {
+            $spaces = 0;
+            foreach ($this->slice($this->index) as $char) {
+                if ($this->isValidCodePoint($char)) {
+                    $spaces = 0;
+                    $this->body[] = $char;
 
-                return $reduced;
+                    continue;
+                }
+
+                if ($spaces === 0) {
+                    $this->body[] = 0;
+                }
+
+                $spaces++;
             }
+        }
 
-            if ($spaces === 0) {
-                $reduced[] = $item;
-            }
-
-            $spaces++;
-            return $reduced;
-        }, []);
-
-        // \var_dump($chars);
-        $result = $raw ? $chars : array_map($callback ?: 'dechex', $chars);
+        $result = $raw ? $this->body : array_map($callback ?: 'dechex', $this->body);
 
         return $imploded ? \implode(' ', $result) : $result;
     }
@@ -105,19 +106,12 @@ class Payload implements \Stringable, \Countable
                 return ' ';
             }
 
-            // $char = pack(self::FORMAT, $char);
-            $encoding = \mb_detect_encoding($char, ['utf-16le', 'ascii'], true);
+            // $encoding = \mb_detect_encoding($char, ['utf-16', 'ascii'], true);
+            $char = pack(self::FORMAT, $char);
 
-            if (\strtolower($encoding) === 'ascii') {
-                return \mb_convert_encoding(pack(self::FORMAT, $char), 'utf-8', $encoding);
-            }
-            // return $encodings;
-            // $decoded = IntlChar::chr($char);
-
-            return $char;
+            return \mb_convert_encoding($char, 'UTF-8');
         });
 
-        \var_dump($result);
         return $imploded ? implode('', $result) : $result;
     }
 
@@ -127,6 +121,10 @@ class Payload implements \Stringable, \Countable
             self::TYPE_RESPONSE => 4,
             self::TYPE_REQUEST => 7,
         });
+    }
+
+    protected function isValidCodePoint(int $char) {
+        return !\in_array($char, [0, 0xffff], true);
     }
 
     public function count(): int
